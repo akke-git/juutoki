@@ -1,5 +1,7 @@
 # juutoki · 로컬 텍스트 수집
 
+**[Windows ZIP 다운로드 · GitHub 로그인 불필요](https://github.com/akke-git/juutoki/releases/latest/download/juutoki-windows-x64.zip)**
+
 Windows 실행 파일 배포는 [GitHub Actions 빌드 안내](docs/windows-build.md)를 참고하세요.
 현재 DB의 일관된 스냅샷을 첫 실행용 데이터로 포함하며 기존 사용자 DB는 덮어쓰지 않습니다.
 

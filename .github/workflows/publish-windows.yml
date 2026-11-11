@@ -1,0 +1,71 @@
+name: Publish Windows download
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Windows build run ID
+        required: true
+        default: '43120674252'
+      release_tag:
+        description: New public release tag
+        required: true
+        default: 'v2026.11.12'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-windows
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify successful Windows build
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9][A-Za-z0-9._-]*$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > build-run.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          run = json.loads(Path('build-run.json').read_text())
+          assert run['conclusion'] == 'success', 'Build must have succeeded'
+          assert run['path'] == '.github/workflows/windows-build.yml', 'Wrong build workflow'
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('BUILD_SHA=' + run['head_sha'] + '\n')
+          PY
+      - name: Download tested executable and create portable ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN_ID" --name juutoki-windows-x64 --dir package/juutoki
+          python - <<'PY'
+          import shutil
+          from pathlib import Path
+          root = Path('package/juutoki')
+          assert (root / 'juutoki.exe').is_file(), 'Missing executable'
+          assert (root / '_internal').is_dir(), 'Missing bundled dependencies'
+          Path('release').mkdir(exist_ok=True)
+          shutil.make_archive('release/juutoki-windows-x64', 'zip', 'package', 'juutoki')
+          PY
+      - name: Publish download without sign-in
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" release/juutoki-windows-x64.zip \
+            --target "$BUILD_SHA" --title "juutoki Windows $RELEASE_TAG" \
+            --notes-file docs/releases/windows.md --draft
+          gh release edit "$RELEASE_TAG" --draft=false --latest

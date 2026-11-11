@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FILES = ["app.py", "scraper.py", "runtime_paths.py", "launcher.py", "requirements.txt",
          "requirements-build.txt", "README.md", ".gitignore"]
 FOLDERS = ["static", "tests", "scripts", "packaging", "seed", ".github"]
-DOCS = ["docs/windows-build.md", "docs/windows-quick-start.txt"]
+DOCS = ["docs/windows-build.md", "docs/windows-quick-start.txt", "docs/releases/windows.md"]
 
 
 def create_archive(root=ROOT, destination=None):
