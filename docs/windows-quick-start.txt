@@ -1,0 +1,20 @@
+juutoki Windows
+
+1. Extract the entire downloaded ZIP to a folder.
+2. Double-click juutoki.exe. Keep _internal next to it.
+3. Your default browser opens automatically after the local server starts.
+4. Keep the console window open while collecting. Press Ctrl+C there to stop.
+
+Python and Codex are not required.
+The server listens only on this computer (127.0.0.1).
+If port 8000 is busy, another free port is selected automatically.
+Launching again opens the running instance instead of another collector.
+
+Data is stored in %LOCALAPPDATA%\juutoki
+The included database is restored only on the first run.
+Existing data is never replaced by the bundled seed database.
+Saved chapters and job history are available from the sidebar.
+Use Saved works to download the complete TXT for a book.
+
+The app does not remove source-site verification or access requirements.
+This build is not code-signed.

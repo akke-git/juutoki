@@ -1,0 +1,56 @@
+name: Build Windows executable
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '*.py'
+      - 'requirements*.txt'
+      - 'static/**'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'seed/**'
+      - 'tests/**'
+      - 'docs/windows*'
+      - '.github/workflows/windows-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      PYTHONUTF8: '1'
+      PYTHONUNBUFFERED: '1'
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.build-browsers
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Install bundled headless Chromium
+        run: python -m playwright install chromium --only-shell
+      - name: Build executable and run offline packaged-runtime test
+        run: python scripts/build_windows.py
+      - name: Upload Windows executable folder
+        uses: actions/upload-artifact@v7
+        with:
+          name: juutoki-windows-x64
+          path: dist/juutoki/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,11 @@
+.venv/
+.browsers/
+__pycache__/
+data/
+.env
+.env.*
+.build-browsers/
+build/
+dist/
+release/
+*.log
