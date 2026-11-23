@@ -8,7 +8,7 @@ Windows 실행 파일 배포는 [GitHub Actions 빌드 안내](docs/windows-buil
 회차 목록 URL을 입력하여 작품 제목, 회차 번호·제목, 본문을 수집하는 테스트 웹입니다.
 FastAPI + Playwright + SQLite로 실행합니다. 별도 DB 서버는 필요 없습니다.
 
-## 실행
+## 최초 설치
 
 저장소에 소스 파일이 직접 들어 있으므로 clone 후 바로 설치할 수 있습니다.
 
@@ -21,11 +21,9 @@ cd juutoki
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.browsers" .venv/bin/python -m playwright install chromium
-.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-브라우저에서 http://127.0.0.1:8000 을 엽니다. Linux에서 브라우저 시스템 라이브러리가
-없으면 Playwright의 공식 시스템 요구사항에 따라 `playwright install-deps chromium`이 필요할 수 있습니다.
+Linux에서 브라우저 시스템 라이브러리가 없으면 Playwright의 공식 시스템 요구사항에 따라 `playwright install-deps chromium`이 필요할 수 있습니다.
 
 소스로 실행할 때는 `data/`의 DB를 사용합니다. 포함된 1~299화 DB로 이어가려면
 서버를 처음 시작하기 전에 다음을 실행하세요. 기존 DB가 있으면 덮어쓰지 않습니다.
@@ -33,6 +31,44 @@ PLAYWRIGHT_BROWSERS_PATH="$PWD/.browsers" .venv/bin/python -m playwright install
 ```sh
 .venv/bin/python -c 'from pathlib import Path; from runtime_paths import install_seed, data_dir; install_seed(Path("seed/newt.sqlite3"), data_dir() / "newt.sqlite3")'
 ```
+
+## 서버 실행·중단
+
+### Linux / Fedora: 소스로 실행
+
+최초 설치를 마친 뒤 프로젝트 폴더에서 실행합니다.
+
+```sh
+.venv/bin/python launcher.py
+```
+
+서버가 준비되면 기본 브라우저가 자동으로 열립니다. 기본 주소는
+[http://127.0.0.1:8000](http://127.0.0.1:8000)이며, 8000번 포트가 사용 중이면
+터미널에 표시된 다른 주소로 접속하세요.
+
+브라우저를 자동으로 열지 않고 서버만 실행하려면:
+
+```sh
+.venv/bin/python launcher.py --no-browser
+```
+
+**서버 중단:** 실행한 터미널에서 **Ctrl+C**를 누릅니다. 다시 실행하려면 위 명령을 사용하세요.
+사용 중에는 실행한 터미널을 열어 두어야 합니다. 브라우저 탭만 닫으면 서버는 계속 실행됩니다.
+
+### Windows: EXE로 실행
+
+다운로드한 ZIP 전체를 압축 해제한 뒤 `juutoki.exe`를 더블클릭합니다.
+PowerShell에서는 EXE가 있는 폴더에서 다음 명령으로 실행할 수도 있습니다.
+
+```powershell
+.\juutoki.exe
+```
+
+**서버 중단:** EXE 실행 시 열린 콘솔 창에서 **Ctrl+C**를 누릅니다.
+`_internal` 폴더는 EXE와 같은 폴더에 보관하세요. Python 설치는 필요 없습니다.
+
+서버를 종료해도 이미 저장된 회차와 작업 기록은 유지됩니다.
+수집 중 종료한 작업은 다음 실행 후 **작업 기록 → 미완료 재시도**로 이어갈 수 있습니다.
 
 ## 테스트 방법
 
