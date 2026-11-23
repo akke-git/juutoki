@@ -66,6 +66,16 @@ class BrowserPage:
 
 
 class ReaderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_closed_shadow_body_replaces_loading_placeholder(self):
+        page = BrowserPage(["본문 불러오는 중..."])
+        visible_body = "화면에 표시된 첫 문단\n\n화면에 표시된 둘째 문단"
+        with patch.object(scraper, "read_closed_shadow", AsyncMock(return_value=visible_body), create=True) as rendered, \
+                patch.object(scraper, "validate_public", AsyncMock()), \
+                patch.object(scraper.asyncio, "sleep", AsyncMock()):
+            result = await scraper.extract(page, {"url": "https://example.com/chapter/1"}, "article")
+        self.assertEqual(result, visible_body)
+        rendered.assert_awaited()
+
     async def read(self, page):
         # DNS and polling delays are external boundaries; keep extraction real.
         with patch.object(scraper, "validate_public", AsyncMock()), patch.object(scraper.asyncio, "sleep", AsyncMock()):

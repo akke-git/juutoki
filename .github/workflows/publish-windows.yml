@@ -6,11 +6,10 @@ on:
       build_run_id:
         description: Successful Windows build run ID
         required: true
-        default: '43120674252'
       release_tag:
         description: New public release tag
         required: true
-        default: 'v2026.11.12'
+        default: 'v2026.11.23'
 
 permissions:
   contents: write

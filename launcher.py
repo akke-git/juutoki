@@ -164,8 +164,11 @@ async def self_test():
         async with scraper.reader() as page:
             await page.set_content("<main><p>juutoki bundled Chromium works</p></main>")
             assert await page.locator("p").inner_text() == "juutoki bundled Chromium works"
+            await page.set_content("<article id='closed-body'></article><script>document.getElementById('closed-body').attachShadow({mode:'closed'}).innerHTML='<p>Closed shadow first paragraph</p><p>Closed shadow second paragraph</p>';</script>")
+            rendered = await scraper.read_closed_shadow(page, "#closed-body")
+            assert "Closed shadow first paragraph\n\nClosed shadow second paragraph" in rendered
     print(json.dumps({"ok": True, "bundled": runtime_paths.is_bundled(), "books": len(books),
-                      "chapters": chapters, "chromium": "ok"}), flush=True)
+                      "chapters": chapters, "chromium": "ok", "closed_shadow": "ok"}), flush=True)
     return 0
 
 

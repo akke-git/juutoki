@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from playwright.async_api import Error as BrowserError
 from playwright.async_api import TimeoutError as BrowserTimeout
 
 
@@ -244,11 +245,61 @@ async def extract(page, chapter, selector):
         page.remove_listener("pageerror", on_error)
 
 
+async def read_closed_shadow(page, selector):
+    """Read already-rendered closed shadow trees through Chromium's DOM inspector."""
+    context = getattr(page, "context", None)
+    if context is None or not hasattr(context, "new_cdp_session"):
+        return ""
+    session = None
+    try:
+        session = await context.new_cdp_session(page)
+        document = await session.send("DOM.getDocument", {"depth": 0})
+        matches = await session.send("DOM.querySelectorAll", {"nodeId": document["root"]["nodeId"], "selector": selector})
+        roots = {}
+
+        def collect(node):
+            if node.get("shadowRootType") == "closed":
+                roots[node["backendNodeId"]] = node
+            for child in node.get("children", []) + node.get("shadowRoots", []):
+                collect(child)
+
+        for node_id in matches["nodeIds"]:
+            tree = await session.send("DOM.describeNode", {"nodeId": node_id, "depth": -1, "pierce": True})
+            collect(tree["node"])
+        sections = []
+        for backend_id in roots:
+            resolved = await session.send("DOM.resolveNode", {"backendNodeId": backend_id})
+            object_id = resolved["object"].get("objectId")
+            if not object_id:
+                continue
+            try:
+                result = await session.send("Runtime.callFunctionOn", {
+                    "objectId": object_id,
+                    "functionDeclaration": "function(){ const host=this.host; if(host && (!host.getClientRects().length || getComputedStyle(host).visibility==='hidden')) return ''; return (" + READ_TEXT + ")(this); }",
+                    "returnByValue": True,
+                })
+                text = result.get("result", {}).get("value", "")
+                if isinstance(text, str) and text.strip():
+                    sections.append(text)
+            finally:
+                await session.send("Runtime.releaseObject", {"objectId": object_id})
+        return "\n\n".join(sections)
+    except BrowserError:
+        # A navigation can replace the DOM while it is being inspected.
+        return ""
+    finally:
+        if session is not None:
+            try:
+                await session.detach()
+            except BrowserError:
+                pass
+
+
 async def read_rendered(page, selector, status, responses, script_errors):
     candidates = page.locator(selector)
     # Wait for a stable body so a partial asynchronous render is not saved.
     last, stable, last_seen = "", 0, ""
-    for _ in range(60):
+    for attempt in range(60):
         for item in await candidates.all():
             if not await item.is_visible():
                 continue
@@ -265,6 +316,18 @@ async def read_rendered(page, selector, status, responses, script_errors):
             if stable >= 2:
                 return text
             break
+        if attempt % 5 == 4:
+            text = clean_text(await read_closed_shadow(page, selector))
+            if access_message(text):
+                raise SiteAccessError("사이트 안내: " + text, requires_verification=True)
+            if text and not any(term in text[:240] for term in PLACEHOLDERS):
+                last_seen = text
+                if text == last:
+                    stable += 1
+                else:
+                    last, stable = text, 0
+                if stable >= 2:
+                    return text
         await asyncio.sleep(0.5)
     # An HTTP 200 shell can hide a failed content request. Report the real
     # response instead of describing every failure as an empty chapter.
