@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import sqlite3
 import uuid
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
@@ -199,7 +200,8 @@ async def run_job(job):
                     if halt_reason or event.is_set():
                         break
                     try:
-                        await asyncio.wait_for(event.wait(), timeout=job["delay"])
+                        interval = random.uniform(max(1, job["delay"] - 5), job["delay"] + 5)
+                        await asyncio.wait_for(event.wait(), timeout=interval)
                     except TimeoutError:
                         pass
             failures = sum(i["status"] == "failed" for i in job["items"])

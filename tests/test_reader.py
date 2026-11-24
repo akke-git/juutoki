@@ -66,6 +66,24 @@ class BrowserPage:
 
 
 class ReaderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_dialogue_about_waiting_is_not_a_loading_banner(self):
+        for text in ('“잠시만 기다려.”\n\n그는 시장으로 걸어갔다.',
+                     '9장 시장\n\n“잠시만 기다려.”\n\n' + '사람들이 거리를 오갔다.\n\n' * 40):
+            text = text.strip()
+            with self.subTest(chars=len(text)):
+                self.assertEqual(await self.read(BrowserPage([text])), text)
+
+    async def test_closed_shadow_dialogue_about_waiting_is_collected(self):
+        text = '9장 시장\n\n“잠시만 기다려.”\n\n' + '사람들이 거리를 오갔다.\n\n' * 40
+        text = text.strip()
+        with patch.object(scraper, "read_closed_shadow", AsyncMock(return_value=text)):
+            self.assertEqual(await self.read(BrowserPage(["본문 불러오는 중..."])), text)
+
+    async def test_standalone_loading_banners_are_not_saved(self):
+        for text in ("본문 불러오는 중...", "잠시만 기다려 주세요."):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "본문"):
+                await self.read(BrowserPage([text]))
+
     async def test_closed_shadow_body_replaces_loading_placeholder(self):
         page = BrowserPage(["본문 불러오는 중..."])
         visible_body = "화면에 표시된 첫 문단\n\n화면에 표시된 둘째 문단"

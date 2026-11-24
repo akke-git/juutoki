@@ -146,6 +146,16 @@ READ_TEXT = """el => {
 PLACEHOLDERS = ("본문 불러오는 중", "본문을 불러오는 중", "잠시만 기다", "본문이 아직 준비", "본문을 불러오지 못", "본문을 불러올 수", "로그인 후", "접근 권한", "인증이 필요")
 
 
+def loading_message(text):
+    # Match a standalone status notice, not a phrase in the opening dialogue.
+    text = text.strip()
+    if len(text) > 240:
+        return False
+    if text.startswith("잠시만 기다"):
+        return bool(re.fullmatch(r"잠시만\s*기다려\s*주세요[.!…\s]*", text))
+    return any(text.startswith(term) for term in PLACEHOLDERS if term != "잠시만 기다")
+
+
 class SiteAccessError(ValueError):
     """Keep HTTP refusals distinct from explicit login/verification prompts."""
 
@@ -307,7 +317,7 @@ async def read_rendered(page, selector, status, responses, script_errors):
             last_seen = text
             if access_message(text):
                 raise SiteAccessError("사이트 안내: " + text, requires_verification=True)
-            if not text or any(term in text[:240] for term in PLACEHOLDERS):
+            if not text or loading_message(text):
                 continue
             if text == last:
                 stable += 1
@@ -320,7 +330,7 @@ async def read_rendered(page, selector, status, responses, script_errors):
             text = clean_text(await read_closed_shadow(page, selector))
             if access_message(text):
                 raise SiteAccessError("사이트 안내: " + text, requires_verification=True)
-            if text and not any(term in text[:240] for term in PLACEHOLDERS):
+            if text and not loading_message(text):
                 last_seen = text
                 if text == last:
                     stable += 1

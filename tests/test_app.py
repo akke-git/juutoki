@@ -1,4 +1,5 @@
 import asyncio
+import random
 import tempfile
 import unittest
 from contextlib import asynccontextmanager
@@ -31,6 +32,37 @@ class ParseTests(unittest.TestCase):
 
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_each_collected_chapter_uses_random_interval_around_setting(self):
+        waits = []
+
+        @asynccontextmanager
+        async def reader():
+            yield None
+
+        async def extract(*args):
+            return "정상 본문"
+
+        async def wait_for(awaitable, timeout):
+            awaitable.close()
+            waits.append(timeout)
+            raise TimeoutError
+
+        for delay, offsets, expected in ((30, [25, 35], [25, 35]), (1, [1, 6], [1, 6])):
+            waits.clear()
+            bounds = []
+
+            def uniform(low, high):
+                bounds.append((low, high))
+                return offsets[len(bounds) - 1]
+
+            with patch.object(scraper, "reader", reader), patch.object(scraper, "extract", extract), \
+                    patch.object(random, "uniform", uniform), patch.object(service.asyncio, "wait_for", wait_for):
+                response = await self.client.post("/api/jobs", json={"snapshot_id": "test", "delay": delay, "skip_existing": False})
+                await self.finish()
+            self.assertEqual(service.get_job(response.json()["id"])["status"], "completed")
+            self.assertEqual(waits, expected)
+            self.assertEqual(bounds, [(max(1, delay - 5), delay + 5)] * 2)
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.data_patch = patch.multiple(service, DATA=Path(self.temp.name), DB=Path(self.temp.name) / "test.db")
